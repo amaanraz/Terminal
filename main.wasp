@@ -1,0 +1,42 @@
+app terminal {
+  wasp: {
+    version: "^0.16.2"
+  },
+  title: "terminal"
+}
+
+route RootRoute { path: "/", to: MainPage }
+page MainPage {
+  component: import { MainPage } from "@src/MainPage"
+}
+
+route RequestRoute { path: "/request", to: RequestPage }
+page RequestPage {
+  component: import { RequestPage } from "@src/RequestPage"
+}
+
+route StoreRoute { path: "/store", to: StorePage }
+page StorePage {
+  component: import { StorePage } from "@src/StorePage"
+}
+
+// route StoringProcessRoute { path: "/storing-process", to: StoringProcess }
+// page StoringProcess {
+//   component: import { StoringProcess } from "@src/Pages/StoringProcess"
+// }
+
+// Database - Actions
+query getItems {
+  // Specifies where the implementation for the query function is.
+  // The path `@src/queries` resolves to `src/queries.js`.
+  // No need to specify an extension.
+  fn: import { getItems } from "@src/queries",
+  // Tell Wasp that this query reads from the `Task` entity. Wasp will
+  // automatically update the results of this query when tasks are modified.
+  entities: [Item]
+}
+
+action createItem {
+  fn: import { createItem } from "@src/actions",
+  entities: [Item]
+}
