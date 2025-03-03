@@ -57,7 +57,7 @@ export default function ItemCatalog() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2 w-10/12">
       <div className="relative max-w-md mx-auto">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <Search className="h-5 w-5 text-muted-foreground" />
@@ -71,7 +71,7 @@ export default function ItemCatalog() {
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 overflow-y-auto max-h-[calc(100vh-200px)] p-2 w-full">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6 overflow-y-auto max-h-[calc(100vh-200px)] p-2 w-full">
         {items.length > 0 ? (
           items.map((item: { id: number; name: string; quantity: number }) => <ItemCard key={item.id} item={item} />)
         ) : (
