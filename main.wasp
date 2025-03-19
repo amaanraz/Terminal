@@ -20,6 +20,11 @@ page StorePage {
   component: import { StorePage } from "@src/StorePage"
 }
 
+route MotorRoute { path: "/motors", to: MotorPage }
+page MotorPage {
+  component: import { MotorPage } from "@src/MotorPage"
+}
+
 // route StoringProcessRoute { path: "/storing-process", to: StoringProcess }
 // page StoringProcess {
 //   component: import { StoringProcess } from "@src/Pages/StoringProcess"

@@ -1,6 +1,6 @@
 import { Badge } from "../../components/ui/badge";
 import { Button, buttonVariants } from "../../components/ui/button";
-import { ArrowUpRight, Package  } from "lucide-react";
+import { Activity, ArrowUpRight, Package  } from "lucide-react";
 import React from "react";
 // import { Link } from "react-router-dom";
 
@@ -16,7 +16,7 @@ const Hero01 = () => {
           The AS/RS Terminal
         </h1>
         <p className="mt-6 text-[17px] md:text-lg">
-          Request and store items in the AS/RS system with ease 
+          Request and store items in the AS/RS system
         </p>
         <div className="mt-12 flex items-center justify-center gap-4">
           <Button size="main" className="rounded-full text-base" onClick={() => window.location.href = "/request"}>
@@ -29,6 +29,10 @@ const Hero01 = () => {
           >
             Store Item
             <Package className="!h-5 !w-5" /> 
+          </Button>
+
+          <Button size="main" className="rounded-full text-base" onClick={() => window.location.href = "/motors"}>
+              Test motors <Activity className="!h-5 !w-5" />
           </Button>
         </div>
       </div>
