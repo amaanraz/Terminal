@@ -17,11 +17,14 @@ import {
 import { Input } from "../components/ui/input"
 import { Label } from "../components/ui/label"
 import { Package } from "lucide-react"
+import axios from 'axios';
 
 interface Item {
   id: number
   name: string
   quantity: number
+  shelf: number
+  box: number
   // image: string
 }
 
@@ -39,6 +42,22 @@ export default function ItemCard({ item }: { item: Item }) {
       return
     }
     setIsRequested(true)
+
+    try {
+      
+      axios.post("http://172.20.10.10:5000/send-command", { 
+        command: "retrieve",
+        shelf: item.shelf,
+        box: item.box
+     })
+            .then(response => console.log(response.data))
+            .catch(error => console.error("Error:", error));
+
+      console.log("OS command sent")
+    } catch (err) {
+      console.error("Failed to send command:", err)
+      window.alert("Could not reach the robot system.")
+    }
 
     // Reset after 3 seconds
     setTimeout(() => {
@@ -59,7 +78,8 @@ export default function ItemCard({ item }: { item: Item }) {
           <div className="flex items-center gap-2 mb-2">
             <Package className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">
-              Available: <strong>{item.quantity}</strong>
+              Shelf: <strong>{item.shelf}</strong>
+              Box: <strong>{item.box}</strong>
             </span>
           </div>
         </div>

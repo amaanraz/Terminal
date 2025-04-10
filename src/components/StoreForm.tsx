@@ -77,7 +77,7 @@ export default function StoreForm() {
                     <FormItem className="grid gap-2">
                       <FormLabel>Item name:</FormLabel>
                       <FormControl>
-                      <Input placeholder="Ardunio, Photoresistor, ..." {...field} />
+                      <Input placeholder="Arduino, Photoresistor, ..." {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

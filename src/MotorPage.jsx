@@ -8,7 +8,7 @@ import axios from 'axios';
 export const MotorPage = () => {
 
     const sendCommand = (command) => {
-        axios.post("http://192.168.1.95:5000/send-command", { command: "start_motor from Web server" })
+        axios.post("http://172.20.10.10:5000/send-command", { command: "start_motor from Web server" })
             .then(response => console.log(response.data))
             .catch(error => console.error("Error:", error));
     };
