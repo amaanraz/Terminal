@@ -45,3 +45,8 @@ action createItem {
   fn: import { createItem } from "@src/actions",
   entities: [Item]
 }
+
+action deleteItem {
+  fn: import { deleteItem } from "@src/actions",
+  entities: [Item]
+}

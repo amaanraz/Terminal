@@ -23,15 +23,16 @@ import {
 import { Input } from '../components/ui/input'
 import { createItem } from 'wasp/client/operations'
 import { Package } from 'lucide-react'
+import axios from 'axios';
 
 // Schema for password validation
 const formSchema = z.object({
     name: z.string().min(2, {
       message: "Item name must be at least 2 characters.",
     }),
-    quantity: z.number().min(1, {
-        message: "Item quanity should be > 0.",
-      }),
+    // quantity: z.number().min(1, {
+    //     message: "Item quanity should be > 0.",
+    //   }),
   })
 
 export default function StoreForm() {
@@ -39,7 +40,7 @@ export default function StoreForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
-      quantity: 0,
+      // quantity: 0,
     },
   })
 
@@ -47,9 +48,21 @@ export default function StoreForm() {
     try {
       // Assuming an async create item function
       console.log(values)
-      await createItem({ name: values.name, quantity: values.quantity })
-      window.alert('Item created successfully')
-    window.location.href = "/"
+      const newitem = await createItem({ name: values.name })
+      
+
+      // get new item shelf and box number
+      console.log(newitem)
+
+      // store item
+      await axios.post("http://172.20.10.10:5000/send-command", {
+        command: "store",
+        shelf: newitem.shelf,
+        box: newitem.box
+      })
+      window.location.href = "/"
+      // window.alert('A box will be provided , please place the item in it')
+    
     } catch (error) {
       console.error('Error creating item', error)
     //   toast.error('Failed to reset the password. Please try again.')
@@ -85,7 +98,7 @@ export default function StoreForm() {
                 />
 
                 {/* Confirm Password Field */}
-                <FormField
+                {/*<FormField
                   control={form.control}
                   name="quantity"
                   render={({ field }) => (
@@ -97,7 +110,7 @@ export default function StoreForm() {
                       <FormMessage />
                     </FormItem>
                   )}
-                />
+                />*/}
 
                 <Button type="submit" className="w-full">
                     Store Item

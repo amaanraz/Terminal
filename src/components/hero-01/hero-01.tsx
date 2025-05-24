@@ -10,13 +10,13 @@ const Hero01 = () => {
     <div className="min-h-screen flex items-center justify-center px-6">
       <div className="text-center max-w-2xl">
         <Badge className="bg-primary/80 rounded-full py-1 border-none">
-          TBD INC.
+          C11 Robotics.
         </Badge>
         <h1 className="mt-6 text-4xl sm:text-5xl md:text-6xl md:leading-[1.2] font-bold">
-          The AS/RS Terminal
+          BitsBox
         </h1>
         <p className="mt-6 text-[17px] md:text-lg">
-          Request and store items in the AS/RS system
+          Request and store items in the BitsBox
         </p>
         <div className="mt-12 flex items-center justify-center gap-4">
           <Button size="main" className="rounded-full text-base" onClick={() => window.location.href = "/request"}>
@@ -31,9 +31,9 @@ const Hero01 = () => {
             <Package className="!h-5 !w-5" /> 
           </Button>
 
-          <Button size="main" className="rounded-full text-base" onClick={() => window.location.href = "/motors"}>
+          {/*<Button size="main" className="rounded-full text-base" onClick={() => window.location.href = "/motors"}>
               Test motors <Activity className="!h-5 !w-5" />
-          </Button>
+          </Button>*/}
         </div>
       </div>
     </div>

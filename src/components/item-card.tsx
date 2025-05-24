@@ -18,6 +18,7 @@ import { Input } from "../components/ui/input"
 import { Label } from "../components/ui/label"
 import { Package } from "lucide-react"
 import axios from 'axios';
+import { deleteItem } from 'wasp/client/operations'
 
 interface Item {
   id: number
@@ -33,39 +34,42 @@ export default function ItemCard({ item }: { item: Item }) {
   const [requestQuantity, setRequestQuantity] = useState(1)
   const [isRequested, setIsRequested] = useState(false)
 
-  const handleRequest = () => {
-    // Here you would typically send a request to your backend
+  const handleRequest = async () => {
     console.log(`Requested ${requestQuantity} of ${item.name}`)
     if (item.quantity < requestQuantity) {
       console.error("Requested quantity exceeds available quantity")
       window.alert('Requested quantity exceeds available quantity')
       return
     }
+
     setIsRequested(true)
 
     try {
-      
-      axios.post("http://172.20.10.10:5000/send-command", { 
+      // UNCOMMENT
+      await axios.post("http://172.20.10.10:5000/send-command", {
         command: "retrieve",
         shelf: item.shelf,
         box: item.box
-     })
-            .then(response => console.log(response.data))
-            .catch(error => console.error("Error:", error));
+      })
 
-      console.log("OS command sent")
+      console.log("Command sent. Now deleting item from database...")
+      await deleteItem({ id: item.id })
+      console.log("Item deleted from database.")
     } catch (err) {
       console.error("Failed to send command:", err)
       window.alert("Could not reach the robot system.")
     }
 
-    // Reset after 3 seconds
     setTimeout(() => {
       setIsRequested(false)
       setIsDialogOpen(false)
       setRequestQuantity(1)
-    }, 3000)
-  }
+      window.location.reload()
+    }, 8000)
+
+    
+}
+
 
   return (
     <>
@@ -78,7 +82,7 @@ export default function ItemCard({ item }: { item: Item }) {
           <div className="flex items-center gap-2 mb-2">
             <Package className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">
-              Shelf: <strong>{item.shelf}</strong>
+              Shelf: <strong className="mr-1">{item.shelf}</strong>
               Box: <strong>{item.box}</strong>
             </span>
           </div>
@@ -94,7 +98,7 @@ export default function ItemCard({ item }: { item: Item }) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Request Item</DialogTitle>
-            <DialogDescription>Please specify the quantity you would like to request.</DialogDescription>
+            <DialogDescription>Please confirm.</DialogDescription>
           </DialogHeader>
 
           {!isRequested ? (
@@ -110,7 +114,7 @@ export default function ItemCard({ item }: { item: Item }) {
                     </Badge>
                   </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
+                {/*<div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="quantity" className="text-right">
                     Quantity
                   </Label>
@@ -123,12 +127,12 @@ export default function ItemCard({ item }: { item: Item }) {
                     onChange={(e) => setRequestQuantity(Number.parseInt(e.target.value) || 1)}
                     className="col-span-3"
                   />
-                </div>
+                </div>*/}
               </div>
               <DialogFooter>
-                <DialogClose asChild>
+                {/*<DialogClose asChild>
                   <Button variant="outline">Cancel</Button>
-                </DialogClose>
+                </DialogClose>*/}
                 <Button onClick={handleRequest}>Submit Request</Button>
               </DialogFooter>
             </>
@@ -148,7 +152,7 @@ export default function ItemCard({ item }: { item: Item }) {
               <h3 className="text-lg font-medium mb-2">Request Submitted!</h3>
               <p className="text-muted-foreground">
                 Your request for {requestQuantity} {item.name}
-                {requestQuantity > 1 ? "s" : ""} has been submitted.
+                {requestQuantity > 1 ? "s" : ""} has been submitted, please wait...
               </p>
             </div>
           )}
