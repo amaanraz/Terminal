@@ -11,16 +11,16 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '../components/ui/form'
-import { Button } from '../components/ui/button'
+} from '../../components/ui/form'
+import { Button } from '../../components/ui/button'
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../components/ui/card'
-import { Input } from '../components/ui/input'
+} from '../../components/ui/card'
+import { Input } from '../../components/ui/input'
 import { createItem } from 'wasp/client/operations'
 import { Package } from 'lucide-react'
 import axios from 'axios';

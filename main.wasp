@@ -25,11 +25,6 @@ page MotorPage {
   component: import { MotorPage } from "@src/MotorPage"
 }
 
-// route StoringProcessRoute { path: "/storing-process", to: StoringProcess }
-// page StoringProcess {
-//   component: import { StoringProcess } from "@src/Pages/StoringProcess"
-// }
-
 // Database - Actions
 query getItems {
   // Specifies where the implementation for the query function is.

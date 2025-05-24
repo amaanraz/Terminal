@@ -2,8 +2,9 @@ import React, { useState } from 'react'
 import { createItem } from 'wasp/client/operations'
 import { ArrowBigLeftDashIcon, ArrowLeft, GalleryVerticalEnd } from "lucide-react"
 import { Form } from './components/ui/form'
-import StoreForm from './components/StoreForm'
+import StoreForm from './components/store/StoreForm'
 import { Button } from './components/ui/button'
+import StoreCamera from './components/store/StoreCamera'
 
 export const StorePage = () => {
     
@@ -17,7 +18,8 @@ export const StorePage = () => {
       <div className="flex items-center justify-center h-screen bg-gray-100 w-full">
       <div className="flex flex-col items-center space-y-4 w-full">
         <div className="w-full h-full bg-gray-100 flex items-center justify-center text-white text-xl font-bold">
-          <StoreForm/>
+          {/* <StoreForm/> */}
+          <StoreCamera/>
         </div>
         <div className="w-full h-2 bg-gray-100 flex items-center justify-center text-white text-xl font-bold">
           <Button className='' onClick={() => window.location.href = '/'} size={"lg"}>
