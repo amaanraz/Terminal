@@ -3,6 +3,7 @@
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import React from 'react';
 
 import {
   Form,
@@ -30,25 +31,35 @@ const formSchema = z.object({
     name: z.string().min(2, {
       message: "Item name must be at least 2 characters.",
     }),
+    image: z.string().optional(), // <-- Add this line
     // quantity: z.number().min(1, {
     //     message: "Item quanity should be > 0.",
     //   }),
   })
 
-export default function StoreForm() {
+interface StoreFormProps {
+  capturedImage: string | null;
+}
+
+export default function StoreForm({ capturedImage }: StoreFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
+      image: capturedImage || '', // <-- Add this line
       // quantity: 0,
     },
   })
 
+  React.useEffect(() => {
+    // Update form value if capturedImage changes
+    form.setValue('image', capturedImage || '');
+  }, [capturedImage]);
+
   async function onSubmit(values: z.infer<typeof formSchema>){
     try {
-      // Assuming an async create item function
-      console.log(values)
-      const newitem = await createItem({ name: values.name })
+      // Send image as part of the item
+      const newitem = await createItem({ name: values.name, image: values.image })
       
 
       // get new item shelf and box number
@@ -80,6 +91,17 @@ export default function StoreForm() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Show captured image if available */}
+          {capturedImage && (
+            <div className="mb-4 flex flex-col items-center">
+              <img
+                src={capturedImage}
+                alt="Captured"
+                className="rounded-lg max-h-48 object-contain border"
+              />
+              <span className="text-xs text-gray-500 mt-1">Captured image</span>
+            </div>
+          )}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               <div className="grid gap-4">

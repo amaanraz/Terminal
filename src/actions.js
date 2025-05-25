@@ -120,6 +120,7 @@ export const createItem = async (args, context) => {
         box: assignedSlot.box,
         status: "Available",
         location: "null",
+        image: args.image || null, // Optional image field
       }
     });
     return newitem

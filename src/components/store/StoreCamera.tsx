@@ -5,13 +5,18 @@ import Tesseract from "tesseract.js";
 
 import { Button } from '../../components/ui/button'
 
-const StoreCamera: React.FC = () => {
+interface StoreCameraProps {
+  setCapturedImage: (img: string | null) => void;
+}
+
+const StoreCamera: React.FC<StoreCameraProps> = ({ setCapturedImage }) => {
   const webcamRef = useRef<Webcam>(null);
   const [ocrResult, setOcrResult] = useState<string>("");
 
   const capture = async () => {
     const imageSrc = webcamRef.current?.getScreenshot();
     if (!imageSrc) return;
+    setCapturedImage(imageSrc);
 
     const result = await Tesseract.recognize(imageSrc, "eng");
     setOcrResult(result.data.text);

@@ -18,4 +18,5 @@ model Item {
     status String
     quantity Int
     dateAdded DateTime @default(now())
+    image String?
 }

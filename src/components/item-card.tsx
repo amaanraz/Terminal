@@ -26,7 +26,7 @@ interface Item {
   quantity: number
   shelf: number
   box: number
-  // image: string
+  image: string | undefined
 }
 
 export default function ItemCard({ item }: { item: Item }) {
@@ -76,7 +76,12 @@ export default function ItemCard({ item }: { item: Item }) {
       <Card className="h-full flex flex-col hover:shadow-md transition-shadow duration-200 w-full">
         <div className="relative pt-4 px-4 flex-grow">
           <div className="relative h-40 w-full mb-4">
-            {/* <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-contain" /> */}
+            <img
+              src={item.image || ""}
+              alt={item.name}
+              className="object-contain"
+              style={{ width: "100%", height: "100%", objectFit: "contain", position: "absolute", top: 0, left: 0 }}
+            />
           </div>
           <h3 className="font-medium text-lg mb-2">{item.name}</h3>
           <div className="flex items-center gap-2 mb-2">
