@@ -55,11 +55,12 @@ export default function StoreForm() {
       console.log(newitem)
 
       // store item
-      await axios.post("http://172.20.10.10:5000/send-command", {
-        command: "store",
-        shelf: newitem.shelf,
-        box: newitem.box
-      })
+      // await axios.post("http://172.20.10.10:5000/send-command", {
+      //   command: "store",
+      //   shelf: newitem.shelf,
+      //   box: newitem.box
+      // })
+      alert(`Item ${values.name} has been stored in shelf ${newitem.shelf} and box ${newitem.box}.`)
       window.location.href = "/"
       // window.alert('A box will be provided , please place the item in it')
     
@@ -90,7 +91,16 @@ export default function StoreForm() {
                     <FormItem className="grid gap-2">
                       <FormLabel>Item name:</FormLabel>
                       <FormControl>
-                      <Input placeholder="Arduino, Photoresistor, ..." {...field} />
+                        <Input
+                          placeholder="Arduino, Photoresistor, ..."
+                          {...field}
+                          onDrop={e => {
+                            e.preventDefault();
+                            const text = e.dataTransfer.getData("text/plain");
+                            field.onChange(field.value ? field.value + " " + text : text);
+                          }}
+                          onDragOver={e => e.preventDefault()}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
