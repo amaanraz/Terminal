@@ -58,19 +58,22 @@ export default function StoreForm({ capturedImage }: StoreFormProps) {
 
   async function onSubmit(values: z.infer<typeof formSchema>){
     try {
-      // Send image as part of the item
-      const newitem = await createItem({ name: values.name, image: values.image })
+      let imageToSave = values.image;
+      if (imageToSave) {
+        imageToSave = await downscaleImage(imageToSave, 400, 0.7); // 400px wide, 70% quality
+      }
+      const newitem = await createItem({ name: values.name, image: imageToSave })
       
 
       // get new item shelf and box number
       console.log(newitem)
 
       // store item
-      // await axios.post("http://172.20.10.10:5000/send-command", {
-      //   command: "store",
-      //   shelf: newitem.shelf,
-      //   box: newitem.box
-      // })
+      await axios.post("http://172.20.10.10:5000/send-command", {
+        command: "store",
+        shelf: newitem.shelf,
+        box: newitem.box
+      })
       alert(`Item ${values.name} has been stored in shelf ${newitem.shelf} and box ${newitem.box}.`)
       window.location.href = "/"
       // window.alert('A box will be provided , please place the item in it')
@@ -79,6 +82,30 @@ export default function StoreForm({ capturedImage }: StoreFormProps) {
       console.error('Error creating item', error)
     //   toast.error('Failed to reset the password. Please try again.')
     }
+  }
+
+  function downscaleImage(base64: string, maxWidth = 400, quality = 0.7): Promise<string> {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const scale = Math.min(maxWidth / img.width, 1);
+        const width = img.width * scale;
+        const height = img.height * scale;
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          // JPEG is much smaller than PNG
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } else {
+          // fallback: return original image if context is not available
+          resolve(base64);
+        }
+      };
+      img.src = base64;
+    });
   }
 
   return (
