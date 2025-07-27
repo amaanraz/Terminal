@@ -1,32 +1,49 @@
 import React, { useState } from 'react'
-import { createItem } from 'wasp/client/operations'
-import { ArrowBigLeftDashIcon, ArrowLeft, GalleryVerticalEnd } from "lucide-react"
-import { Form } from './components/ui/form'
-import StoreForm from './components/store/StoreForm'
+import { ArrowLeft } from "lucide-react"
 import { Button } from './components/ui/button'
-import StoreCamera from './components/store/StoreCamera'
+import { StoreScanPage } from './components/store/StoreScanPage.jsx'
+import ItemCatalog from './components/item-catalog'
 
 export const StorePage = () => {
-    const [capturedImage, setCapturedImage] = useState(null);
+  const [mode, setMode] = useState('scan') // 'scan' or 'manual'
 
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-100 w-full relative">
-      {/* Back button in top left */}
+  return (
+    <div className="min-h-screen bg-gray-100 w-full relative">
+      {/* Back button */}
       <div className="absolute top-6 left-6">
-        <Button className='' onClick={() => window.location.href = '/'} size={"lg"}>
-        <ArrowLeft className="!h-5 !w-6" /> Back
+        <Button onClick={() => window.location.href = '/'} size="lg">
+          <ArrowLeft className="h-5 w-6" /> Back
         </Button>
       </div>
-      <div className="flex flex-col items-center space-y-4 w-full">
-        <div className="w-full flex flex-row items-stretch justify-center gap-8">
-        <div className="flex-1 flex items-center justify-end">
-          <StoreForm capturedImage={capturedImage} />
+
+      <div className="flex flex-col items-center space-y-6 w-full max-w-5xl mx-auto pt-8">
+        <div className="flex gap-4 mb-4">
+          <Button
+            variant={mode === 'scan' ? 'default' : 'outline'}
+            onClick={() => setMode('scan')}
+          >
+            QR Scan & Store
+          </Button>
+          <Button
+            variant={mode === 'manual' ? 'default' : 'outline'}
+            onClick={() => setMode('manual')}
+          >
+            Select from Catalog
+          </Button>
         </div>
-        <div className="flex-1 flex items-center justify-start">
-          <StoreCamera setCapturedImage={setCapturedImage} />
-        </div>
-        </div>
+
+        {mode === 'scan' && <StoreScanPage />}
+        {mode === 'manual' && (
+          <div className="w-full">
+            <h2 className="text-xl font-semibold mb-4">Select an Item to Store</h2>
+            <ItemCatalog mode="store" />
+            {/* 
+              You can enhance ItemCatalog to accept a prop (e.g. mode="store") 
+              and show a "Store" button on each item card that triggers the store logic.
+            */}
+          </div>
+        )}
       </div>
-      </div>
-    );
+    </div>
+  )
 }

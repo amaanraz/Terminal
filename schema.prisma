@@ -19,4 +19,5 @@ model Item {
     quantity Int
     dateAdded DateTime @default(now())
     image String?
+    qrCode String?
 }

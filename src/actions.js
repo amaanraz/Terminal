@@ -121,6 +121,7 @@ export const createItem = async (args, context) => {
         status: "Available",
         location: "null",
         image: args.image || null, // Optional image field
+        qrCode: args.qrCode,
       }
     });
     return newitem
@@ -134,5 +135,17 @@ export const deleteItem = async (args, context) => {
   return await context.entities.Item.delete({
     where: { id: args.id },
   })
+}
+
+export const updateItem = async (args, context) => {
+  // args: { id, image, quantity }
+  const data = {};
+  if (args.image !== undefined) data.image = args.image;
+  if (args.quantity !== undefined) data.quantity = args.quantity;
+
+  return await context.entities.Item.update({
+    where: { id: args.id },
+    data,
+  });
 }
 

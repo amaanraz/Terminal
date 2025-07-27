@@ -9,7 +9,7 @@ import { set } from "react-hook-form"
 
 // Mock data to simulate database items
 const mockItems = [
-  { id: 1, name: "Office Chair", quantity: 12, shelf: 1, box: 7, image: "https://example.com/chair.jpg" },
+  { id: 1, name: "Office Chair", quantity: 12, shelf: 1, box: 7, image: "https://example.com/chair.jpg", qrCode: "QR12345" },
 ]
 
 export default function ItemCatalog() {
@@ -73,8 +73,8 @@ export default function ItemCatalog() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6 overflow-y-auto max-h-[calc(100vh-200px)] p-2 w-full">
         {items.length > 0 ? (
-          items.map((item: { id: number; name: string; quantity: number; shelf: number; box: number; image: string }) => (
-            <ItemCard key={item.id} item={item} />
+          items.map((item: { id: number; name: string; quantity: number; shelf: number; box: number; image: string, qrCode: string}) => (
+            <ItemCard key={item.id} item={item} allItems={items} />
           ))
         ) : (
           <div className="col-span-full text-center py-10 text-muted-foreground">

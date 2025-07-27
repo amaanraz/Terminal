@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-// import Image from "next/image"
+import { QRCodeSVG } from "qrcode.react"
 import { Button } from "../components/ui/button"
 import { Card, CardFooter } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
@@ -18,7 +18,7 @@ import { Input } from "../components/ui/input"
 import { Label } from "../components/ui/label"
 import { Package } from "lucide-react"
 import axios from 'axios';
-import { deleteItem } from 'wasp/client/operations'
+import { deleteItem, updateItem } from 'wasp/client/operations'
 
 interface Item {
   id: number
@@ -27,12 +27,43 @@ interface Item {
   shelf: number
   box: number
   image: string | undefined
+  qrCode: string
 }
 
-export default function ItemCard({ item }: { item: Item }) {
+export default function ItemCard({ item, allItems }: { item: Item, allItems: Item[] }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [requestQuantity, setRequestQuantity] = useState(1)
   const [isRequested, setIsRequested] = useState(false)
+  const [showQrDialog, setShowQrDialog] = useState(false)
+  const [retrievalInfo, setRetrievalInfo] = useState<{
+    qrImage?: string,
+    qrResults?: { [qr: string]: number },
+    qrTypes?: { [qr: string]: string },
+    metadata?: any
+  } | null>(null)
+
+  const handleConfirmRetrieval = async () => {
+    if (!retrievalInfo) return;
+
+    // Find if this item's QR code is among the detected
+    const detectedCount = retrievalInfo.qrResults?.[item.qrCode];
+    if (detectedCount !== undefined) {
+      // Prepare the image as a data URL
+      const qrImageUrl = retrievalInfo.qrImage?.startsWith('data:')
+        ? retrievalInfo.qrImage
+        : `data:image/png;base64,${retrievalInfo.qrImage}`;
+
+      // Update the item in the database
+      await updateItem({
+        id: item.id,
+        image: qrImageUrl,
+        quantity: detectedCount
+      });
+    }
+    setIsDialogOpen(false);
+    setRetrievalInfo(null);
+    window.location.reload(); // Reload to reflect changes
+  }
 
   const handleRequest = async () => {
     console.log(`Requested ${requestQuantity} of ${item.name}`)
@@ -45,35 +76,129 @@ export default function ItemCard({ item }: { item: Item }) {
     setIsRequested(true)
 
     try {
-      // UNCOMMENT
-      await axios.post("http://172.20.10.10:5000/send-command", {
+      // Send the command
+      await axios.post("http://192.168.1.106:5000/send-command", {
         command: "retrieve",
         shelf: item.shelf,
         box: item.box
       })
 
-      console.log("Command sent. Now deleting item from database...")
-      await deleteItem({ id: item.id })
-      console.log("Item deleted from database.")
+      console.log("Command sent. Waiting for completion...")
+      
+      // Poll for completion
+      const pollForCompletion = async () => {
+        try {
+          const response = await axios.get(`http://192.168.1.106:5000/motor-completion`)
+          
+          if (response.data.status === 'completed') {
+            console.log("Task completed! Metadata:", response.data)
+            console.log("QR Code:", response.data["qr-results"])
+            let qrResults = {}
+            let qrTypes = {}
+            if (response.data["qr-results"]) {
+              qrResults = response.data["qr-results"]
+            }
+            if (response.data["qr-types"]) {
+              qrTypes = response.data["qr-types"]
+            }
+            setRetrievalInfo({
+              qrImage: response.data.qr_image_b64
+                ? `data:image/png;base64,${response.data.qr_image_b64}`
+                : undefined,
+              qrResults,
+              qrTypes,
+              metadata: response.data.metadata
+            })
+            setIsRequested(false)
+            return true
+          } else if (response.data.status === 'error') {
+            console.error("Task failed! Error:", response.data.error || 'Unknown error')
+            alert(`Task failed: ${response.data.error || 'Unknown error'}`)
+            setIsRequested(false)
+            setIsDialogOpen(false)
+            window.location.reload()
+            return true
+          } 
+          return false // Continue polling
+        } catch (err) {
+          console.error("Error checking task status:", err)
+          return false
+        }
+      }
+
+      // Poll every 5 seconds, max 30 attempts (2.5 minutes)
+      let attempts = 0
+      const maxAttempts = 30
+      const pollInterval = setInterval(async () => {
+        attempts++
+        const completed = await pollForCompletion()
+        
+        if (completed || attempts >= maxAttempts) {
+          clearInterval(pollInterval)
+          if (attempts >= maxAttempts) {
+            alert("Task timeout - please check manually")
+          }
+        }
+      }, 5000)
+
     } catch (err) {
       console.error("Failed to send command:", err)
       window.alert("Could not reach the robot system.")
-    }
-
-    setTimeout(() => {
       setIsRequested(false)
       setIsDialogOpen(false)
-      setRequestQuantity(1)
       window.location.reload()
-    }, 8000)
+    }
+  }
 
-    
-}
-
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank', 'width=400,height=400')
+    printWindow?.document.write(`
+      <html>
+        <head>
+          <title>Print QR Code</title>
+        </head>
+        <body style="display:flex;align-items:center;justify-content:center;height:100vh;">
+          <div style="text-align:center;">
+            <div id="qrcode"></div>
+            <p style="margin-top:16px;font-size:18px;">${item.name}</p>
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+            }
+          </script>
+        </body>
+      </html>
+    `)
+    setTimeout(() => {
+      const qrDiv = printWindow?.document.getElementById('qrcode')
+      if (qrDiv) {
+        qrDiv.innerHTML = document.getElementById(`qrcode-svg-${item.id}`)?.outerHTML || ''
+      }
+    }, 100)
+  }
 
   return (
     <>
-      <Card className="h-full flex flex-col hover:shadow-md transition-shadow duration-200 w-full">
+      <Card className="h-full flex flex-col hover:shadow-md transition-shadow duration-200 w-full relative">
+        {/* QR Code in top right, clickable */}
+        <div
+          style={{
+            position: "absolute",
+            top: 12,
+            right: 12,
+            zIndex: 10,
+            background: "white",
+            borderRadius: 12,
+            padding: 6,
+            boxShadow: "0 4px 16px rgba(0,0,0,0.18), 0 1.5px 4px rgba(0,0,0,0.10)"
+          }}
+          className="cursor-pointer transition-transform hover:scale-105"
+          onClick={() => setShowQrDialog(true)}
+          title="Show QR Code"
+        >
+          <QRCodeSVG value={item.qrCode} size={48} id={`qrcode-svg-${item.id}`} />
+        </div>
         <div className="relative pt-4 px-4 flex-grow">
           <div className="relative h-40 w-full mb-4">
             <img
@@ -88,7 +213,8 @@ export default function ItemCard({ item }: { item: Item }) {
             <Package className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">
               Shelf: <strong className="mr-1">{item.shelf}</strong>
-              Box: <strong>{item.box}</strong>
+              Box: <strong className="mr-1" >{item.box}</strong>
+              Quantity: <strong>{item.quantity}</strong>
             </span>
           </div>
         </div>
@@ -99,14 +225,59 @@ export default function ItemCard({ item }: { item: Item }) {
         </CardFooter>
       </Card>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog
+        open={isDialogOpen}
+        onOpenChange={(open) => {
+          // Only allow closing if not waiting for request or confirmation
+          if (!isRequested && !retrievalInfo) {
+            setIsDialogOpen(open);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Request Item</DialogTitle>
             <DialogDescription>Please confirm.</DialogDescription>
           </DialogHeader>
 
-          {!isRequested ? (
+          {retrievalInfo ? (
+            <div className="py-4 flex flex-col items-center">
+              {retrievalInfo.qrImage && (
+                <img
+                  src={retrievalInfo.qrImage}
+                  alt="Detected QR"
+                  className="mb-4 rounded border shadow"
+                  style={{ maxWidth: 220 }}
+                />
+              )}
+              <div className="mb-2 w-full">
+                <h4 className="font-semibold mb-1">Detected Items:</h4>
+                {retrievalInfo.qrResults && Object.keys(retrievalInfo.qrResults).length > 0 ? (
+                  <ul className="text-sm bg-gray-100 rounded p-2">
+                    {Object.entries(retrievalInfo.qrResults).map(([qr, count]) => {
+                      const matchedItem = allItems.find(i => i.qrCode === qr);
+                      return (
+                        <li key={qr}>
+                          <span className="font-semibold">
+                            {matchedItem ? matchedItem.name : <span className="text-gray-400 italic">Unknown Item</span>}
+                          </span>
+                          {retrievalInfo.qrTypes && retrievalInfo.qrTypes[qr] && (
+                            <span className="ml-2 text-xs text-blue-600">({retrievalInfo.qrTypes[qr]})</span>
+                          )}
+                          <span className="ml-2 text-red-700">x {count}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <span className="text-muted-foreground">No items detected.</span>
+                )}
+              </div>
+              <Button className="mt-4" onClick={handleConfirmRetrieval}>
+                Confirm Retrieval
+              </Button>
+            </div>
+          ) : !isRequested ? (
             <>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -119,25 +290,8 @@ export default function ItemCard({ item }: { item: Item }) {
                     </Badge>
                   </div>
                 </div>
-                {/*<div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="quantity" className="text-right">
-                    Quantity
-                  </Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    min={1}
-                    max={item.quantity}
-                    value={requestQuantity}
-                    onChange={(e) => setRequestQuantity(Number.parseInt(e.target.value) || 1)}
-                    className="col-span-3"
-                  />
-                </div>*/}
               </div>
               <DialogFooter>
-                {/*<DialogClose asChild>
-                  <Button variant="outline">Cancel</Button>
-                </DialogClose>*/}
                 <Button onClick={handleRequest}>Submit Request</Button>
               </DialogFooter>
             </>
@@ -161,6 +315,20 @@ export default function ItemCard({ item }: { item: Item }) {
               </p>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Code Dialog */}
+      <Dialog open={showQrDialog} onOpenChange={setShowQrDialog}>
+        <DialogContent className="flex flex-col items-center justify-center">
+          <DialogHeader>
+            <DialogTitle>QR Code for {item.name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center justify-center py-4">
+            <QRCodeSVG value={item.qrCode} size={180} />
+            <p className="mt-2 text-center text-muted-foreground break-all">{item.qrCode}</p>
+            <Button className="mt-4" onClick={handlePrint}>Print</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>
