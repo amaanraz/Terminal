@@ -20,6 +20,8 @@ import { Package } from "lucide-react"
 import axios from 'axios';
 import { deleteItem, updateItem } from 'wasp/client/operations'
 
+const RPI_BASE_URL = "http://192.168.1.107:5000";
+
 interface Item {
   id: number
   name: string
@@ -41,56 +43,16 @@ export default function ItemCard({ item, allItems }: { item: Item, allItems: Ite
     qrTypes?: { [qr: string]: string },
     metadata?: any
   } | null>(null)
+  const [isFinalizing, setIsFinalizing] = useState(false)
+  const [finalInfo, setFinalInfo] = useState<{ qrImage?: string, qrResults?: { [qr: string]: number }, qrTypes?: { [qr: string]: string }, metadata?: any } | null>(null)
 
-  const handleConfirmRetrieval = async () => {
-    if (!retrievalInfo) return;
-
-    // Find if this item's QR code is among the detected
-    const detectedCount = retrievalInfo.qrResults?.[item.qrCode];
-    if (detectedCount !== undefined) {
-      // Prepare the image as a data URL
-      const qrImageUrl = retrievalInfo.qrImage?.startsWith('data:')
-        ? retrievalInfo.qrImage
-        : `data:image/png;base64,${retrievalInfo.qrImage}`;
-
-      // Update the item in the database
-      await updateItem({
-        id: item.id,
-        image: qrImageUrl,
-        quantity: detectedCount
-      });
-    }
-    setIsDialogOpen(false);
-    setRetrievalInfo(null);
-    window.location.reload(); // Reload to reflect changes
-  }
-
-  const handleRequest = async () => {
-    console.log(`Requested ${requestQuantity} of ${item.name}`)
-    if (item.quantity < requestQuantity) {
-      console.error("Requested quantity exceeds available quantity")
-      window.alert('Requested quantity exceeds available quantity')
-      return
-    }
-
-    setIsRequested(true)
-
-    try {
-      // Send the command
-      await axios.post("http://192.168.1.106:5000/send-command", {
-        command: "retrieve",
-        shelf: item.shelf,
-        box: item.box
-      })
-
-      console.log("Command sent. Waiting for completion...")
-      
-      // Poll for completion
+  const waitForCompletion = async (command: string) => {
+    // Poll for completion
       const pollForCompletion = async () => {
         try {
-          const response = await axios.get(`http://192.168.1.106:5000/motor-completion`)
+          const response = await axios.get(`${RPI_BASE_URL}/motor-completion`)
           
-          if (response.data.status === 'completed') {
+          if (response.data.status === 'completed' && response.data.command === command) {
             console.log("Task completed! Metadata:", response.data)
             console.log("QR Code:", response.data["qr-results"])
             let qrResults = {}
@@ -140,9 +102,70 @@ export default function ItemCard({ item, allItems }: { item: Item, allItems: Ite
           }
         }
       }, 5000)
+  }
+
+  const handleConfirmRetrieval = async () => {
+    if (!retrievalInfo) return;
+
+    setIsFinalizing(true); // Show finalizing state
+
+    // Send the store command to the robot
+    handleRequest("store");
+
+    // Find if this item's QR code is among the detected
+    // const detectedCount = retrievalInfo.qrResults?.[item.qrCode];
+    // const newQuantity = detectedCount ? detectedCount : 0;
+    // const qrImageUrl = retrievalInfo.qrImage?.startsWith('data:')
+    //   ? retrievalInfo.qrImage
+    //   : `data:image/png;base64,${retrievalInfo.qrImage}`;
+
+    // Poll for store completion
+    let attempts = 0;
+    const maxAttempts = 30;
+    const pollInterval = setInterval(async () => {
+      attempts++;
+      try {
+        const response = await axios.get(`${RPI_BASE_URL}/motor-completion`);
+        if (response.data.status === 'completed' && response.data.command === "store") {
+            await updateItem({
+            id: item.id,
+            image: response.data.qr_image_b64
+              ? `data:image/png;base64,${response.data.qr_image_b64}`
+              : "",
+            quantity: response.data["qr-results"]?.[item.qrCode] ?? 0
+            });
+          clearInterval(pollInterval);
+          window.location.reload();
+        }
+        if (attempts >= maxAttempts) {
+          clearInterval(pollInterval);
+          alert("Finalization timeout - please check manually");
+          setIsFinalizing(false);
+        }
+      } catch (err) {
+        // Optionally handle error
+      }
+    }, 5000);
+  }
+
+  const handleRequest = async (command: string) => {
+
+    setIsRequested(true)
+
+    try {
+      // Send the command
+      await axios.post(`${RPI_BASE_URL}/send-command`, {
+        command,
+        shelf: item.shelf,
+        box: item.box
+      })
+
+      console.log("Command sent. Waiting for completion..." + command)
+      
+      waitForCompletion(command)
 
     } catch (err) {
-      console.error("Failed to send command:", err)
+      console.error("Failed to send command:" + command, err)
       window.alert("Could not reach the robot system.")
       setIsRequested(false)
       setIsDialogOpen(false)
@@ -226,21 +249,29 @@ export default function ItemCard({ item, allItems }: { item: Item, allItems: Ite
       </Card>
 
       <Dialog
-        open={isDialogOpen}
+        open={isDialogOpen || isFinalizing}
         onOpenChange={(open) => {
-          // Only allow closing if not waiting for request or confirmation
-          if (!isRequested && !retrievalInfo) {
+          // Prevent closing while finalizing or waiting for request/confirmation
+          if (!isRequested && !retrievalInfo && !isFinalizing) {
             setIsDialogOpen(open);
           }
         }}
       >
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Request Item</DialogTitle>
-            <DialogDescription>Please confirm.</DialogDescription>
-          </DialogHeader>
-
-          {retrievalInfo ? (
+          {isFinalizing ? (
+            <div className="py-6 text-center">
+              <div className="mb-4 text-blue-500 flex justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium mb-2">Please wait...</h3>
+              <p className="text-muted-foreground">
+                The system is resetting for the next operation/request. This may take a moment.
+              </p>
+            </div>
+          ) : retrievalInfo ? (
             <div className="py-4 flex flex-col items-center">
               {retrievalInfo.qrImage && (
                 <img
@@ -292,7 +323,7 @@ export default function ItemCard({ item, allItems }: { item: Item, allItems: Ite
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={handleRequest}>Submit Request</Button>
+                <Button onClick={() => handleRequest("retrieve")}>Submit Request</Button>
               </DialogFooter>
             </>
           ) : (

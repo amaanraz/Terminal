@@ -36,6 +36,9 @@ export const StorePage = () => {
         {mode === 'manual' && (
           <div className="w-full">
             <h2 className="text-xl font-semibold mb-4">Select an Item to Store</h2>
+            <p className="text-gray-600 mb-4">
+              Please print and affix the QR code to the top making sure it is visible via overhead camera before storing it.
+            </p>
             <ItemCatalog mode="store" />
             {/* 
               You can enhance ItemCatalog to accept a prop (e.g. mode="store") 
