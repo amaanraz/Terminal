@@ -767,14 +767,38 @@ code {
   margin: 1rem 0;
 }
 
-.store-scan-qr-image {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 0.5rem;
+/* Add to Main.css */
+
+.store-scan-dialog {
+  text-align: center;
+  padding: 2rem;
+  margin-bottom: 2rem;
 }
 
-.store-scan-qr-note {
-  color: #2563eb;
+.store-scan-dialog-spinner {
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.store-scan-spinner {
+  height: 48px;
+  width: 48px;
+  animation: spin 1s linear infinite;
+  /* You can use a real spinner SVG here */
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.store-scan-dialog-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.store-scan-dialog-message {
+  color: #666;
   font-size: 1rem;
-  margin-top: 0.5rem;
 }

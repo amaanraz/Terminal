@@ -14,7 +14,10 @@ export const StoreScanPage = () => {
   const [isStoring, setIsStoring] = useState(false);
   const [newItemForm, setNewItemForm] = useState({ name: '', type: '' });
   const [generatedQR, setGeneratedQR] = useState(null);
+  const [pendingQR, setPendingQR] = useState(null);
   const [step, setStep] = useState('scan'); // 'scan', 'confirm', 'new-item', 'create-direct', 'success'
+  const [isRequested, setIsRequested] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
 
   const { data: allItems } = useQuery(getItems);
 
@@ -35,6 +38,7 @@ export const StoreScanPage = () => {
           setMatchedItem(matchedItem);
           setStep('confirm');
         } else {
+          setPendingQR(qrString); // <-- Save scanned QR for new item
           setStep('new-item');
         }
       } else {
@@ -49,14 +53,42 @@ export const StoreScanPage = () => {
 
   const confirmStoreExistingItem = async () => {
     if (!matchedItem) return;
-    setIsStoring(true);
+
+    setIsRequested(true); // Show "please wait" dialog
+
+    // Step 1: Send retrieve command
     try {
-      alert(`Item ${matchedItem.name} stored successfully!`);
-      resetScan();
+      await axios.post(`${RPI_BASE_URL}/send-command`, {
+        command: "retrieve",
+        shelf: matchedItem.shelf,
+        box: matchedItem.box
+      });
+
+      // Poll for retrieve completion
+      let attempts = 0;
+      const maxAttempts = 30;
+      const pollRetrieve = setInterval(async () => {
+        attempts++;
+        try {
+          const response = await axios.get(`${RPI_BASE_URL}/motor-completion`);
+          if (response.data.status === 'completed' && response.data.command === "retrieve") {
+            clearInterval(pollRetrieve);
+
+            setIsRequested(false);
+            setStep('confirm-placement'); // New step for manual confirmation
+          }
+          if (attempts >= maxAttempts) {
+            clearInterval(pollRetrieve);
+            setIsRequested(false);
+            alert("Retrieve timeout - please check manually");
+          }
+        } catch (err) {
+          // Optionally handle error
+        }
+      }, 5000);
     } catch (error) {
+      setIsRequested(false);
       alert('Error storing item. Please try again.');
-    } finally {
-      setIsStoring(false);
     }
   };
 
@@ -67,7 +99,6 @@ export const StoreScanPage = () => {
     }
     setIsStoring(true);
     try {
-      const qrString = generateQRString(newItemForm.name);
       let imageToSave = capturedImage;
       if (imageToSave) {
         imageToSave = await downscaleImage(imageToSave, 400, 0.7);
@@ -75,9 +106,9 @@ export const StoreScanPage = () => {
       await createItem({
         name: newItemForm.name,
         image: imageToSave,
-        qrCode: qrString
+        qrCode: pendingQR // <-- Use scanned QR code
       });
-      setGeneratedQR(qrString);
+      setGeneratedQR(pendingQR);
       setStep('success');
     } catch (error) {
       alert('Error creating new item. Please try again.');
@@ -136,6 +167,7 @@ export const StoreScanPage = () => {
     setMatchedItem(null);
     setNewItemForm({ name: '', type: '' });
     setGeneratedQR(null);
+    setPendingQR(null); // <-- Reset pending QR
     setStep('scan');
   };
 
@@ -204,7 +236,7 @@ export const StoreScanPage = () => {
               <div className="store-scan-btn-row">
                 <button
                   className="hero-btn store-scan-btn"
-                  onClick={confirmStoreExistingItem}
+                  onClick={(confirmStoreExistingItem)}
                   disabled={isStoring}
                 >
                   {isStoring ? 'Storing...' : 'Confirm Store'}
@@ -324,6 +356,71 @@ export const StoreScanPage = () => {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {isRequested && (
+          <div className="store-scan-card store-scan-dialog">
+            <div className="store-scan-dialog-spinner">
+              <svg className="store-scan-spinner" />
+            </div>
+            <h3 className="store-scan-dialog-title">Please wait...</h3>
+            <p className="store-scan-dialog-message">
+              The system is retrieving the item. This may take a moment.
+            </p>
+          </div>
+        )}
+        {isFinalizing && (
+          <div className="store-scan-card store-scan-dialog">
+            <div className="store-scan-dialog-spinner">
+              <svg className="store-scan-spinner" />
+            </div>
+            <h3 className="store-scan-dialog-title">Please wait...</h3>
+            <p className="store-scan-dialog-message">
+              The system is resetting for the next operation/request. This may take a moment.
+            </p>
+          </div>
+        )}
+
+        {step === 'confirm-placement' && (
+          <div className="store-scan-card store-scan-dialog">
+            <h3 className="store-scan-dialog-title">Place the item in the box</h3>
+            <p className="store-scan-dialog-message">
+              Please put the item in the correct box, then confirm below.
+            </p>
+            <button
+              className="hero-btn store-scan-btn"
+              onClick={async () => {
+                setIsFinalizing(true);
+                // Send store command
+                await axios.post(`${RPI_BASE_URL}/send-command`, {
+                  command: "store",
+                  shelf: matchedItem.shelf,
+                  box: matchedItem.box
+                });
+                // Poll for store completion (same as before)
+                let storeAttempts = 0;
+                const maxAttempts = 30;
+                const pollStore = setInterval(async () => {
+                  storeAttempts++;
+                  try {
+                    const storeResponse = await axios.get(`${RPI_BASE_URL}/motor-completion`);
+                    if (storeResponse.data.status === 'completed' && storeResponse.data.command === "store") {
+                      clearInterval(pollStore);
+                      setIsFinalizing(false);
+                      window.location.reload();
+                    }
+                    if (storeAttempts >= maxAttempts) {
+                      clearInterval(pollStore);
+                      setIsFinalizing(false);
+                      alert("Store timeout - please check manually");
+                    }
+                  } catch (err) {}
+                }, 5000);
+              }}
+            >
+              Confirm Item Placed in Box
+            </button>
           </div>
         )}
       </div>
