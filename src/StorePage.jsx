@@ -1,49 +1,44 @@
 import React, { useState } from 'react'
 import { ArrowLeft } from "lucide-react"
-import { Button } from './components/ui/button'
-import { StoreScanPage } from './components/store/StoreScanPage.jsx'
 import ItemCatalog from './components/item-catalog'
+import { StoreScanPage } from './components/store/StoreScanPage.jsx'
 
 export const StorePage = () => {
   const [mode, setMode] = useState('scan') // 'scan' or 'manual'
 
   return (
-    <div className="min-h-screen bg-gray-100 w-full relative">
+    <div className="store-page-root">
       {/* Back button */}
-      <div className="absolute top-6 left-6">
-        <Button onClick={() => window.location.href = '/'} size="lg">
-          <ArrowLeft className="h-5 w-6" /> Back
-        </Button>
+      <div className="store-page-back-btn">
+        <button className="hero-btn" onClick={() => window.location.href = '/'}>
+          <ArrowLeft className="hero01-icon" /> Back
+        </button>
       </div>
 
-      <div className="flex flex-col items-center space-y-6 w-full max-w-5xl mx-auto pt-8">
-        <div className="flex gap-4 mb-4">
-          <Button
-            variant={mode === 'scan' ? 'default' : 'outline'}
+      <div className="store-page-content">
+        <div className="store-page-mode-toggle">
+          <button
+            className={`hero-btn${mode === 'scan' ? ' store-page-btn-active' : ' store-page-btn-outline'}`}
             onClick={() => setMode('scan')}
           >
             QR Scan & Store
-          </Button>
-          <Button
-            variant={mode === 'manual' ? 'default' : 'outline'}
+          </button>
+          <button
+            className={`hero-btn${mode === 'manual' ? ' store-page-btn-active' : ' store-page-btn-outline'}`}
             onClick={() => setMode('manual')}
           >
             Select from Catalog
-          </Button>
+          </button>
         </div>
 
         {mode === 'scan' && <StoreScanPage />}
         {mode === 'manual' && (
-          <div className="w-full">
-            <h2 className="text-xl font-semibold mb-4">Select an Item to Store</h2>
-            <p className="text-gray-600 mb-4">
+          <div className="store-page-catalog">
+            <h2 className="store-page-title">Select an Item to Store</h2>
+            <p className="store-page-desc">
               Please print and affix the QR code to the top making sure it is visible via overhead camera before storing it.
             </p>
             <ItemCatalog mode="store" />
-            {/* 
-              You can enhance ItemCatalog to accept a prop (e.g. mode="store") 
-              and show a "Store" button on each item card that triggers the store logic.
-            */}
           </div>
         )}
       </div>

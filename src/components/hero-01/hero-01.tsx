@@ -2,38 +2,32 @@ import { Badge } from "../../components/ui/badge";
 import { Button, buttonVariants } from "../../components/ui/button";
 import { Activity, ArrowUpRight, Package  } from "lucide-react";
 import React from "react";
-// import { Link } from "react-router-dom";
-
 
 const Hero01 = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center px-6">
-      <div className="text-center max-w-2xl">
-        <Badge className="bg-primary/80 rounded-full py-1 border-none">
+    <div className="hero01-root">
+      <div className="hero01-content">
+        <Badge className="hero01-badge">
           C11 Robotics.
         </Badge>
-        <h1 className="mt-6 text-4xl sm:text-5xl md:text-6xl md:leading-[1.2] font-bold">
+        <h1 className="hero01-title">
           BitsBox
         </h1>
-        <p className="mt-6 text-[17px] md:text-lg">
+        <p className="hero01-subtitle">
           Request and store items in the BitsBox
         </p>
-        <div className="mt-12 flex items-center justify-center gap-4">
-          <Button size="main" className="rounded-full text-base" onClick={() => window.location.href = "/request"}>
-              Request Item <ArrowUpRight className="!h-5 !w-5" />
+        <div className="hero01-buttons">
+          <Button size="main" className="hero01-btn" onClick={() => window.location.href = "/request"}>
+              Request Item <ArrowUpRight className="hero01-icon" />
           </Button>
           <Button
             size="main"
-            className="rounded-full text-base"
+            className="hero01-btn"
             onClick={() => window.location.href = "/store"}
           >
             Store Item
-            <Package className="!h-5 !w-5" /> 
+            <Package className="hero01-icon" /> 
           </Button>
-
-          {/*<Button size="main" className="rounded-full text-base" onClick={() => window.location.href = "/motors"}>
-              Test motors <Activity className="!h-5 !w-5" />
-          </Button>*/}
         </div>
       </div>
     </div>
