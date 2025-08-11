@@ -802,3 +802,34 @@ code {
   color: #666;
   font-size: 1rem;
 }
+
+/* --- Scanned QR Codes Block --- */
+.scanned-contents {
+  margin-top: 0.5rem;
+}
+
+.scanned-contents-title {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.scanned-contents-list {
+  font-size: 0.95rem;
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.scanned-contents-unexpected {
+  color: #dc2626;
+  font-weight: bold;
+}
+
+.scanned-contents-unknown {
+  font-style: italic;
+  color: #888;
+}
+
+.scanned-contents-qty {
+  margin-left: 0.5em;
+}

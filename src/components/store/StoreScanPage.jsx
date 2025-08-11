@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import Webcam from 'react-webcam';
 import { QRCodeSVG } from 'qrcode.react';
 import { extractQRFromBase64, generateQRString } from '../../utils/qrCodeUtils';
-import { createItem, getItems, useQuery } from 'wasp/client/operations';
+import { createItem, getItems, useQuery, updateItem } from 'wasp/client/operations';
 import axios from 'axios';
 
 export const StoreScanPage = () => {
@@ -20,6 +20,8 @@ export const StoreScanPage = () => {
   const [isFinalizing, setIsFinalizing] = useState(false);
 
   const { data: allItems } = useQuery(getItems);
+  const RPI_BASE_URL = "http://127.0.0.1:5000";
+
 
   const captureAndScan = async () => {
     const imageSrc = webcamRef.current?.getScreenshot();
@@ -108,8 +110,39 @@ export const StoreScanPage = () => {
         image: imageToSave,
         qrCode: pendingQR // <-- Use scanned QR code
       });
+      // Find the new item in the DB
+      const newItem = await getItems().then(items => items.find(i => i.qrCode === pendingQR));
+      setMatchedItem(newItem);
       setGeneratedQR(pendingQR);
-      setStep('success');
+
+      // --- Retrieve the box for the new item ---
+      setIsRequested(true);
+      await axios.post(`${RPI_BASE_URL}/send-command`, {
+        command: "retrieve",
+        shelf: newItem.shelf,
+        box: newItem.box
+      });
+
+      // Poll for retrieve completion
+      let attempts = 0;
+      const maxAttempts = 30;
+      const pollRetrieve = setInterval(async () => {
+        attempts++;
+        try {
+          const response = await axios.get(`${RPI_BASE_URL}/motor-completion`);
+          if (response.data.status === 'completed' && response.data.command === "retrieve") {
+            clearInterval(pollRetrieve);
+            setIsRequested(false);
+            setStep('confirm-placement');
+          }
+          if (attempts >= maxAttempts) {
+            clearInterval(pollRetrieve);
+            setIsRequested(false);
+            alert("Retrieve timeout - please check manually");
+          }
+        } catch (err) {}
+      }, 5000);
+
     } catch (error) {
       alert('Error creating new item. Please try again.');
     } finally {
@@ -178,188 +211,194 @@ export const StoreScanPage = () => {
   return (
     <div className="store-scan-root">
       <div className="store-scan-content">
-        {step === 'scan' && (
-          <div className="store-scan-card">
-            <div className="store-scan-card-header">
-              <span className="store-scan-card-title">
-                QR Code Scanner
-              </span>
-            </div>
-            <div className="store-scan-card-content">
-              <div className="store-scan-webcam-container">
-                <Webcam
-                  audio={false}
-                  ref={webcamRef}
-                  screenshotFormat="image/jpeg"
-                  className="store-scan-webcam"
-                />
-                <div className="store-scan-btn-row">
-                  <button
-                    className="hero-btn store-scan-btn"
-                    onClick={captureAndScan}
-                    disabled={isScanning}
-                  >
-                    {isScanning ? 'Scanning...' : 'Capture & Scan QR'}
-                  </button>
-                  <button
-                    className="hero-btn store-scan-btn store-scan-btn-outline"
-                    onClick={goToCreateDirect}
-                  >
-                    Create New Item
-                  </button>
+        {/* Only show main cards if no overlay dialog is active */}
+        {!(isRequested || isFinalizing || step === 'confirm-placement') && (
+          <>
+            {step === 'scan' && (
+              <div className="store-scan-card">
+                <div className="store-scan-card-header">
+                  <span className="store-scan-card-title">
+                    QR Code Scanner
+                  </span>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {step === 'confirm' && matchedItem && (
-          <div className="store-scan-card">
-            <div className="store-scan-card-header">
-              <span className="store-scan-card-title">Item Found!</span>
-            </div>
-            <div className="store-scan-card-content">
-              <div className="store-scan-item-details">
-                {matchedItem.image && (
-                  <img
-                    src={matchedItem.image}
-                    alt={matchedItem.name}
-                    className="store-scan-item-image"
-                  />
-                )}
-                <div>
-                  <h3 className="store-scan-item-name">{matchedItem.name}</h3>
-                  <p className="store-scan-item-meta">Shelf: {matchedItem.shelf}, Box: {matchedItem.box}</p>
-                  <p className="store-scan-item-meta">QR: {scanResult}</p>
-                </div>
-              </div>
-              <div className="store-scan-btn-row">
-                <button
-                  className="hero-btn store-scan-btn"
-                  onClick={(confirmStoreExistingItem)}
-                  disabled={isStoring}
-                >
-                  {isStoring ? 'Storing...' : 'Confirm Store'}
-                </button>
-                <button
-                  className="hero-btn store-scan-btn store-scan-btn-outline"
-                  onClick={resetScan}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {step === 'new-item' && (
-          <div className="store-scan-card">
-            <div className="store-scan-card-header">
-              <span className="store-scan-card-title">New Item Registration</span>
-            </div>
-            <div className="store-scan-card-content">
-              <p className="store-scan-item-meta">QR code not found in database. Register new item:</p>
-              <div className="store-scan-form-row">
-                <label htmlFor="itemName" className="store-scan-label">Item Name</label>
-                <input
-                  id="itemName"
-                  value={newItemForm.name}
-                  onChange={(e) => setNewItemForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter item name..."
-                  className="store-scan-input"
-                />
-              </div>
-              <div className="store-scan-btn-row">
-                <button
-                  className="hero-btn store-scan-btn"
-                  onClick={createNewItem}
-                  disabled={isStoring || !newItemForm.name.trim()}
-                >
-                  {isStoring ? 'Creating...' : 'Create & Store Item'}
-                </button>
-                <button
-                  className="hero-btn store-scan-btn store-scan-btn-outline"
-                  onClick={resetScan}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {step === 'create-direct' && (
-          <div className="store-scan-card">
-            <div className="store-scan-card-header">
-              <span className="store-scan-card-title">Create New Item</span>
-            </div>
-            <div className="store-scan-card-content">
-              <p className="store-scan-item-meta">Create a new item and generate QR code:</p>
-              <div className="store-scan-form-row">
-                <label htmlFor="directItemName" className="store-scan-label">Item Name</label>
-                <input
-                  id="directItemName"
-                  value={newItemForm.name}
-                  onChange={(e) => setNewItemForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter item name..."
-                  className="store-scan-input"
-                />
-              </div>
-              <div className="store-scan-btn-row">
-                <button
-                  className="hero-btn store-scan-btn"
-                  onClick={createDirectItem}
-                  disabled={isStoring || !newItemForm.name.trim()}
-                >
-                  {isStoring ? 'Creating...' : 'Create Item & Generate QR'}
-                </button>
-                <button
-                  className="hero-btn store-scan-btn store-scan-btn-outline"
-                  onClick={resetScan}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {step === 'success' && (
-          <div className="store-scan-card">
-            <div className="store-scan-card-header">
-              <span className="store-scan-card-title" style={{ color: "#16a34a" }}>Success!</span>
-            </div>
-            <div className="store-scan-card-content store-scan-success-content">
-              <p>Item "{newItemForm.name}" has been created and stored successfully!</p>
-              {generatedQR && (
-                <div className="store-scan-qr-section">
-                  <p className="store-scan-item-meta">Generated QR Code:</p>
-                  <div className="store-scan-qr-image">
-                    <QRCodeSVG value={generatedQR} size={128} />
+                <div className="store-scan-card-content">
+                  <div className="store-scan-webcam-container">
+                    <Webcam
+                      audio={false}
+                      ref={webcamRef}
+                      screenshotFormat="image/jpeg"
+                      className="store-scan-webcam"
+                    />
+                    <div className="store-scan-btn-row">
+                      <button
+                        className="hero-btn store-scan-btn"
+                        onClick={captureAndScan}
+                        disabled={isScanning}
+                      >
+                        {isScanning ? 'Scanning...' : 'Capture & Scan QR'}
+                      </button>
+                      <button
+                        className="hero-btn store-scan-btn store-scan-btn-outline"
+                        onClick={goToCreateDirect}
+                      >
+                        Create New Item
+                      </button>
+                    </div>
                   </div>
-                  <p className="store-scan-item-meta">{generatedQR}</p>
-                  <p className="store-scan-qr-note">Print or save this QR code for future scanning!</p>
                 </div>
-              )}
-              <div className="store-scan-btn-row">
-                <button
-                  className="hero-btn store-scan-btn"
-                  onClick={resetScan}
-                >
-                  Create Another Item
-                </button>
-                <button
-                  className="hero-btn store-scan-btn store-scan-btn-outline"
-                  onClick={() => window.location.href = '/'}
-                >
-                  Go Home
-                </button>
               </div>
-            </div>
-          </div>
+            )}
+
+            {step === 'confirm' && matchedItem && (
+              <div className="store-scan-card">
+                <div className="store-scan-card-header">
+                  <span className="store-scan-card-title">Item Found!</span>
+                </div>
+                <div className="store-scan-card-content">
+                  <div className="store-scan-item-details">
+                    {matchedItem.image && (
+                      <img
+                        src={matchedItem.image}
+                        alt={matchedItem.name}
+                        className="store-scan-item-image"
+                      />
+                    )}
+                    <div>
+                      <h3 className="store-scan-item-name">{matchedItem.name}</h3>
+                      <p className="store-scan-item-meta">Shelf: {matchedItem.shelf}, Box: {matchedItem.box}</p>
+                      <p className="store-scan-item-meta">QR: {scanResult}</p>
+                    </div>
+                  </div>
+                  <div className="store-scan-btn-row">
+                    <button
+                      className="hero-btn store-scan-btn"
+                      onClick={(confirmStoreExistingItem)}
+                      disabled={isStoring}
+                    >
+                      {isStoring ? 'Storing...' : 'Confirm Store'}
+                    </button>
+                    <button
+                      className="hero-btn store-scan-btn store-scan-btn-outline"
+                      onClick={resetScan}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 'new-item' && (
+              <div className="store-scan-card">
+                <div className="store-scan-card-header">
+                  <span className="store-scan-card-title">New Item Registration</span>
+                </div>
+                <div className="store-scan-card-content">
+                  <p className="store-scan-item-meta">QR code not found in database. Register new item:</p>
+                  <div className="store-scan-form-row">
+                    <label htmlFor="itemName" className="store-scan-label">Item Name</label>
+                    <input
+                      id="itemName"
+                      value={newItemForm.name}
+                      onChange={(e) => setNewItemForm(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Enter item name..."
+                      className="store-scan-input"
+                    />
+                  </div>
+                  <div className="store-scan-btn-row">
+                    <button
+                      className="hero-btn store-scan-btn"
+                      onClick={createNewItem}
+                      disabled={isStoring || !newItemForm.name.trim()}
+                    >
+                      {isStoring ? 'Creating...' : 'Create & Store Item'}
+                    </button>
+                    <button
+                      className="hero-btn store-scan-btn store-scan-btn-outline"
+                      onClick={resetScan}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 'create-direct' && (
+              <div className="store-scan-card">
+                <div className="store-scan-card-header">
+                  <span className="store-scan-card-title">Create New Item</span>
+                </div>
+                <div className="store-scan-card-content">
+                  <p className="store-scan-item-meta">Create a new item and generate QR code:</p>
+                  <div className="store-scan-form-row">
+                    <label htmlFor="directItemName" className="store-scan-label">Item Name</label>
+                    <input
+                      id="directItemName"
+                      value={newItemForm.name}
+                      onChange={(e) => setNewItemForm(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Enter item name..."
+                      className="store-scan-input"
+                    />
+                  </div>
+                  <div className="store-scan-btn-row">
+                    <button
+                      className="hero-btn store-scan-btn"
+                      onClick={createDirectItem}
+                      disabled={isStoring || !newItemForm.name.trim()}
+                    >
+                      {isStoring ? 'Creating...' : 'Create Item & Generate QR'}
+                    </button>
+                    <button
+                      className="hero-btn store-scan-btn store-scan-btn-outline"
+                      onClick={resetScan}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 'success' && (
+              <div className="store-scan-card">
+                <div className="store-scan-card-header">
+                  <span className="store-scan-card-title" style={{ color: "#16a34a" }}>Success!</span>
+                </div>
+                <div className="store-scan-card-content store-scan-success-content">
+                  <p>Item "{newItemForm.name}" has been created and stored successfully!</p>
+                  {generatedQR && (
+                    <div className="store-scan-qr-section">
+                      <p className="store-scan-item-meta">Generated QR Code:</p>
+                      <div className="store-scan-qr-image">
+                        <QRCodeSVG value={generatedQR} size={128} />
+                      </div>
+                      <p className="store-scan-item-meta">{generatedQR}</p>
+                      <p className="store-scan-qr-note">Print or save this QR code for future scanning!</p>
+                    </div>
+                  )}
+                  <div className="store-scan-btn-row">
+                    <button
+                      className="hero-btn store-scan-btn"
+                      onClick={resetScan}
+                    >
+                      Create Another Item
+                    </button>
+                    <button
+                      className="hero-btn store-scan-btn store-scan-btn-outline"
+                      onClick={() => window.location.href = '/'}
+                    >
+                      Go Home
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
-        {isRequested && (
+        {/* Overlay dialogs (only one will show at a time) */}
+        {isRequested ? (
           <div className="store-scan-card store-scan-dialog">
             <div className="store-scan-dialog-spinner">
               <svg className="store-scan-spinner" />
@@ -369,8 +408,7 @@ export const StoreScanPage = () => {
               The system is retrieving the item. This may take a moment.
             </p>
           </div>
-        )}
-        {isFinalizing && (
+        ) : isFinalizing ? (
           <div className="store-scan-card store-scan-dialog">
             <div className="store-scan-dialog-spinner">
               <svg className="store-scan-spinner" />
@@ -380,13 +418,11 @@ export const StoreScanPage = () => {
               The system is resetting for the next operation/request. This may take a moment.
             </p>
           </div>
-        )}
-
-        {step === 'confirm-placement' && (
+        ) : step === 'confirm-placement' ? (
           <div className="store-scan-card store-scan-dialog">
             <h3 className="store-scan-dialog-title">Place the item in the box</h3>
             <p className="store-scan-dialog-message">
-              Please put the item in the correct box, then confirm below.
+              Please put item in the correct box, then confirm below.
             </p>
             <button
               className="hero-btn store-scan-btn"
@@ -398,7 +434,7 @@ export const StoreScanPage = () => {
                   shelf: matchedItem.shelf,
                   box: matchedItem.box
                 });
-                // Poll for store completion (same as before)
+                // Poll for store completion
                 let storeAttempts = 0;
                 const maxAttempts = 30;
                 const pollStore = setInterval(async () => {
@@ -407,6 +443,14 @@ export const StoreScanPage = () => {
                     const storeResponse = await axios.get(`${RPI_BASE_URL}/motor-completion`);
                     if (storeResponse.data.status === 'completed' && storeResponse.data.command === "store") {
                       clearInterval(pollStore);
+                      // --- Update the item in the DB with new image and quantity ---
+                      await updateItem({
+                        id: matchedItem.id,
+                        image: storeResponse.data.qr_image_b64
+                          ? `data:image/png;base64,${storeResponse.data.qr_image_b64}`
+                          : "",
+                        quantity: storeResponse.data["qr-results"]?.[matchedItem.qrCode] ?? 0
+                      });
                       setIsFinalizing(false);
                       window.location.reload();
                     }
@@ -422,7 +466,7 @@ export const StoreScanPage = () => {
               Confirm Item Placed in Box
             </button>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

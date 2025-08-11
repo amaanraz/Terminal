@@ -21,7 +21,7 @@ import axios from 'axios';
 import { deleteItem, updateItem } from 'wasp/client/operations'
 import CustomModal from "./CustomModal"; // Adjust path as needed
 
-const RPI_BASE_URL = "http://172.16.26.205:5000";
+const RPI_BASE_URL = "http://127.0.0.1:5000";
 
 interface Item {
   id: number
@@ -216,14 +216,34 @@ export default function ItemCard({ item, allItems }: { item: Item, allItems: Ite
               Quantity: <strong>{item.quantity}</strong>
             </span>
           </div>
+          {/* Show scanned QR codes if available */}
+          {retrievalInfo?.qrResults && Object.keys(retrievalInfo.qrResults).length > 0 && (
+            <div className="scanned-contents">
+              <div className="scanned-contents-title">Scanned Contents:</div>
+              <ul className="scanned-contents-list">
+                {Object.entries(retrievalInfo.qrResults).map(([qr, count]) => {
+                  const matchedItem = allItems.find(i => i.qrCode === qr);
+                  const isUnexpected = qr !== item.qrCode;
+                  return (
+                    <li key={qr}>
+                      <span className={isUnexpected ? "scanned-contents-unexpected" : ""}>
+                        {matchedItem ? matchedItem.name : <span className="scanned-contents-unknown">Unknown Item</span>}
+                        <span className="scanned-contents-qty">x {count}</span>
+                        {isUnexpected && " (Unexpected)"}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
         </div>
         <CardFooter className="item-card-footer">
           <button
             className="item-card-btn"
             onClick={() => setIsDialogOpen(true)}
-            disabled={item.quantity === 0}
           >
-            {item.quantity === 0 ? "Out of Stock" : "Request Item"}
+            Request Item
           </button>
         </CardFooter>
       </Card>
@@ -304,7 +324,7 @@ export default function ItemCard({ item, allItems }: { item: Item, allItems: Ite
             </div>
             <h3 className="item-card-dialog-header">Request Submitted!</h3>
             <p className="item-card-details-text">
-              Your request for {requestQuantity} {item.name}
+              Your request for {item.name}
               {requestQuantity > 1 ? "s" : ""} has been submitted, please wait...
             </p>
           </div>

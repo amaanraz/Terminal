@@ -6,6 +6,9 @@ import { StoreScanPage } from './components/store/StoreScanPage.jsx'
 export const StorePage = () => {
   const [mode, setMode] = useState('scan') // 'scan' or 'manual'
 
+  const RPI_BASE_URL = "http://172.16.26.205:5000";
+  
+
   return (
     <div className="store-page-root">
       {/* Back button */}
