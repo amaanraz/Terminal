@@ -33,7 +33,13 @@ interface Item {
   qrCode: string
 }
 
-export default function ItemCard({ item, allItems }: { item: Item, allItems: Item[] }) {
+interface ItemCardProps {
+  item: Item
+  allItems: Item[]
+  mode?: string
+}
+
+export default function ItemCard({ item, allItems, mode = "default" }: ItemCardProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [requestQuantity, setRequestQuantity] = useState(1)
   const [isRequested, setIsRequested] = useState(false)
@@ -117,13 +123,21 @@ export default function ItemCard({ item, allItems }: { item: Item, allItems: Ite
       try {
         const response = await axios.get(`${RPI_BASE_URL}/motor-completion`);
         if (response.data.status === 'completed' && response.data.command === "store") {
-            await updateItem({
+          await updateItem({
             id: item.id,
             image: response.data.qr_image_b64
               ? `data:image/png;base64,${response.data.qr_image_b64}`
               : "",
             quantity: response.data["qr-results"]?.[item.qrCode] ?? 0
-            });
+          });
+          setFinalInfo({
+            qrImage: response.data.qr_image_b64
+              ? `data:image/png;base64,${response.data.qr_image_b64}`
+              : undefined,
+            qrResults: response.data["qr-results"],
+            qrTypes: response.data["qr-types"],
+            metadata: response.data.metadata
+          });
           clearInterval(pollInterval);
           window.location.reload();
         }
@@ -237,13 +251,34 @@ export default function ItemCard({ item, allItems }: { item: Item, allItems: Ite
               </ul>
             </div>
           )}
+          {/* Show scanned QR codes from the last store operation */}
+          {finalInfo?.qrResults && Object.keys(finalInfo.qrResults).length > 0 && (
+            <div className="scanned-contents">
+              <div className="scanned-contents-title">Scanned Contents (After Store):</div>
+              <ul className="scanned-contents-list">
+                {Object.entries(finalInfo.qrResults).map(([qr, count]) => {
+                  const matchedItem = allItems.find(i => i.qrCode === qr);
+                  const isUnexpected = qr !== item.qrCode;
+                  return (
+                    <li key={qr}>
+                      <span className={isUnexpected ? "scanned-contents-unexpected" : ""}>
+                        {matchedItem ? matchedItem.name : <span className="scanned-contents-unknown">Unknown Item</span>}
+                        <span className="scanned-contents-qty">x {count}</span>
+                        {isUnexpected && " (Unexpected)"}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
         </div>
         <CardFooter className="item-card-footer">
           <button
             className="item-card-btn"
             onClick={() => setIsDialogOpen(true)}
           >
-            Request Item
+            {mode === "store" ? "Store Item" : "Request Item"}
           </button>
         </CardFooter>
       </Card>

@@ -11,7 +11,7 @@ const mockItems = [
   { id: 1, name: "Office Chair", quantity: 12, shelf: 1, box: 7, image: "https://example.com/chair.jpg", qrCode: "QR12345" },
 ]
 
-export default function ItemCatalog() {
+export default function ItemCatalog({ mode = "default" }) {
   const { data: itemsFromDb, isLoading, error } = useQuery(getItems)
   const [items, setItems] = useState(mockItems)
   const [searchTerm, setSearchTerm] = useState("")
@@ -86,8 +86,8 @@ export default function ItemCatalog() {
 
       <div className="item-catalog-grid">
         {items && items.length > 0 ? (
-          items.map((item: { id: number; name: string; quantity: number; shelf: number; box: number; image: string, qrCode: string }) => (
-            <ItemCard key={item.id} item={item} allItems={items} />
+          items.map((item) => (
+            <ItemCard key={item.id} item={item} allItems={items} mode={mode} />
           ))
         ) : (
           <div className="item-catalog-empty">
